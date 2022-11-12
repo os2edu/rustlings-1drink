@@ -5,186 +5,140 @@
 // You can read more about it at https://doc.rust-lang.org/std/convert/trait.TryFrom.html
 // Execute `rustlings hint try_from_into` or use the `hint` watch subcommand for a hint.
 
-use std::convert::{TryFrom, TryInto};
-
-#[derive(Debug, PartialEq)]
-struct Color {
-    red: u8,
-    green: u8,
-    blue: u8,
+#[derive(Debug)]
+struct Person {
+    name: String,
+    age: usize,
 }
 
-// We will use this error type for these `TryFrom` conversions.
-#[derive(Debug, PartialEq)]
-enum IntoColorError {
-    // Incorrect length of slice
-    BadLen,
-    // Integer conversion error
-    IntConversion,
+// We implement the Default trait to use it as a fallback
+// when the provided string is not convertible into a Person object
+impl Default for Person {
+    fn default() -> Person {
+        Person {
+            name: String::from("John"),
+            age: 30,
+        }
+    }
 }
-
-// I AM NOT DONE
 
 // Your task is to complete this implementation
-// and return an Ok result of inner type Color.
-// You need to create an implementation for a tuple of three integers,
-// an array of three integers, and a slice of integers.
+// in order for the line `let p = Person::from("Mark,20")` to compile
+// Please note that you'll need to parse the age component into a `usize`
+// with something like `"4".parse::<usize>()`. The outcome of this needs to
+// be handled appropriately.
 //
-// Note that the implementation for tuple and array will be checked at compile time,
-// but the slice implementation needs to check the slice length!
-// Also note that correct RGB color values must be integers in the 0..=255 range.
+// Steps:
+// 1. If the length of the provided string is 0, then return the default of Person
+// 2. Split the given string on the commas present in it
+// 3. Extract the first element from the split operation and use it as the name
+// 4. If the name is empty, then return the default of Person
+// 5. Extract the other element from the split operation and parse it into a `usize` as the age
+// If while parsing the age, something goes wrong, then return the default of Person
+// Otherwise, then return an instantiated Person object with the results
 
-// Tuple implementation
-impl TryFrom<(i16, i16, i16)> for Color {
-    type Error = IntoColorError;
-    fn try_from(tuple: (i16, i16, i16)) -> Result<Self, Self::Error> {
-    }
-}
-
-// Array implementation
-impl TryFrom<[i16; 3]> for Color {
-    type Error = IntoColorError;
-    fn try_from(arr: [i16; 3]) -> Result<Self, Self::Error> {
-    }
-}
-
-// Slice implementation
-impl TryFrom<&[i16]> for Color {
-    type Error = IntoColorError;
-    fn try_from(slice: &[i16]) -> Result<Self, Self::Error> {
+impl From<&str> for Person {
+    fn from(s: &str) -> Person {
+        let name_age = s.split(",").collect::<Vec<&str>>();
+        if name_age.len() == 2 && name_age[0].len() > 0 {
+            if let Ok(age) = name_age[1].parse::<usize>() {
+                return Person {
+                    name: name_age[0].to_string(),
+                    age,
+                };
+            }
+        }
+        Person::default()
     }
 }
 
 fn main() {
-    // Use the `try_from` function
-    let c1 = Color::try_from((183, 65, 14));
-    println!("{:?}", c1);
-
-    // Since TryFrom is implemented for Color, we should be able to use TryInto
-    let c2: Result<Color, _> = [183, 65, 14].try_into();
-    println!("{:?}", c2);
-
-    let v = vec![183, 65, 14];
-    // With slice we should use `try_from` function
-    let c3 = Color::try_from(&v[..]);
-    println!("{:?}", c3);
-    // or take slice within round brackets and use TryInto
-    let c4: Result<Color, _> = (&v[..]).try_into();
-    println!("{:?}", c4);
+    // Use the `from` function
+    let p1 = Person::from("Mark,20");
+    // Since From is implemented for Person, we should be able to use Into
+    let p2: Person = "Gerald,70".into();
+    println!("{:?}", p1);
+    println!("{:?}", p2);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn test_default() {
+        // Test that the default person is 30 year old John
+        let dp = Person::default();
+        assert_eq!(dp.name, "John");
+        assert_eq!(dp.age, 30);
+    }
+    #[test]
+    fn test_bad_convert() {
+        // Test that John is returned when bad string is provided
+        let p = Person::from("");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
+    }
+    #[test]
+    fn test_good_convert() {
+        // Test that "Mark,20" works
+        let p = Person::from("Mark,20");
+        assert_eq!(p.name, "Mark");
+        assert_eq!(p.age, 20);
+    }
+    #[test]
+    fn test_bad_age() {
+        // Test that "Mark,twenty" will return the default person due to an error in parsing age
+        let p = Person::from("Mark,twenty");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
+    }
 
     #[test]
-    fn test_tuple_out_of_range_positive() {
-        assert_eq!(
-            Color::try_from((256, 1000, 10000)),
-            Err(IntoColorError::IntConversion)
-        );
+    fn test_missing_comma_and_age() {
+        let p: Person = Person::from("Mark");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
+
     #[test]
-    fn test_tuple_out_of_range_negative() {
-        assert_eq!(
-            Color::try_from((-1, -10, -256)),
-            Err(IntoColorError::IntConversion)
-        );
+    fn test_missing_age() {
+        let p: Person = Person::from("Mark,");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
+
     #[test]
-    fn test_tuple_sum() {
-        assert_eq!(
-            Color::try_from((-1, 255, 255)),
-            Err(IntoColorError::IntConversion)
-        );
+    fn test_missing_name() {
+        let p: Person = Person::from(",1");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
+
     #[test]
-    fn test_tuple_correct() {
-        let c: Result<Color, _> = (183, 65, 14).try_into();
-        assert!(c.is_ok());
-        assert_eq!(
-            c.unwrap(),
-            Color {
-                red: 183,
-                green: 65,
-                blue: 14
-            }
-        );
+    fn test_missing_name_and_age() {
+        let p: Person = Person::from(",");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
+
     #[test]
-    fn test_array_out_of_range_positive() {
-        let c: Result<Color, _> = [1000, 10000, 256].try_into();
-        assert_eq!(c, Err(IntoColorError::IntConversion));
+    fn test_missing_name_and_invalid_age() {
+        let p: Person = Person::from(",one");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
+
     #[test]
-    fn test_array_out_of_range_negative() {
-        let c: Result<Color, _> = [-10, -256, -1].try_into();
-        assert_eq!(c, Err(IntoColorError::IntConversion));
+    fn test_trailing_comma() {
+        let p: Person = Person::from("Mike,32,");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
+
     #[test]
-    fn test_array_sum() {
-        let c: Result<Color, _> = [-1, 255, 255].try_into();
-        assert_eq!(c, Err(IntoColorError::IntConversion));
-    }
-    #[test]
-    fn test_array_correct() {
-        let c: Result<Color, _> = [183, 65, 14].try_into();
-        assert!(c.is_ok());
-        assert_eq!(
-            c.unwrap(),
-            Color {
-                red: 183,
-                green: 65,
-                blue: 14
-            }
-        );
-    }
-    #[test]
-    fn test_slice_out_of_range_positive() {
-        let arr = [10000, 256, 1000];
-        assert_eq!(
-            Color::try_from(&arr[..]),
-            Err(IntoColorError::IntConversion)
-        );
-    }
-    #[test]
-    fn test_slice_out_of_range_negative() {
-        let arr = [-256, -1, -10];
-        assert_eq!(
-            Color::try_from(&arr[..]),
-            Err(IntoColorError::IntConversion)
-        );
-    }
-    #[test]
-    fn test_slice_sum() {
-        let arr = [-1, 255, 255];
-        assert_eq!(
-            Color::try_from(&arr[..]),
-            Err(IntoColorError::IntConversion)
-        );
-    }
-    #[test]
-    fn test_slice_correct() {
-        let v = vec![183, 65, 14];
-        let c: Result<Color, _> = Color::try_from(&v[..]);
-        assert!(c.is_ok());
-        assert_eq!(
-            c.unwrap(),
-            Color {
-                red: 183,
-                green: 65,
-                blue: 14
-            }
-        );
-    }
-    #[test]
-    fn test_slice_excess_length() {
-        let v = vec![0, 0, 0, 0];
-        assert_eq!(Color::try_from(&v[..]), Err(IntoColorError::BadLen));
-    }
-    #[test]
-    fn test_slice_insufficient_length() {
-        let v = vec![0, 0];
-        assert_eq!(Color::try_from(&v[..]), Err(IntoColorError::BadLen));
+    fn test_trailing_comma_and_some_string() {
+        let p: Person = Person::from("Mike,32,man");
+        assert_eq!(p.name, "John");
+        assert_eq!(p.age, 30);
     }
 }
